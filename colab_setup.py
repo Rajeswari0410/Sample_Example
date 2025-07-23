@@ -120,17 +120,16 @@ import re
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-try:
-    from crewai import Agent, Task, Crew, Process
-    from crewai_tools import BaseTool
-    from langchain_community.tools import DuckDuckGoSearchRun
-    from langchain_community.llms import Ollama
-    from langchain_openai import ChatOpenAI
-    from pydantic import BaseModel, Field
-    import requests
-except ImportError as e:
-    logger.error(f"Missing required packages: {e}")
-    raise
+ try:
+     from crewai import Agent, Task, Crew, Process
+     from crewai_tools import BaseTool
+     from langchain_community.llms import Ollama
+     from langchain_openai import ChatOpenAI
+     from pydantic import BaseModel, Field
+     import requests
+ except ImportError as e:
+     logger.error(f"Missing required packages: {e}")
+     raise
 
  class InvestmentAnalysisConfig:
      """Configuration class for the investment analysis system"""
@@ -319,12 +318,11 @@ class InvestmentAnalysisCrew:
         self.llm = config.setup_llm()
         self.tools = self._setup_tools()
         
-         def _setup_tools(self):
+              def _setup_tools(self):
          """Setup all tools for the crew"""
          return {
              'read_md': ReadMarkdownFileTool(),
              'sentiment': EnhancedSentimentTool(),
-             'search': DuckDuckGoSearchRun(),
              'financial_metrics': FinancialMetricsExtractorTool()
          }
     
@@ -343,7 +341,7 @@ class InvestmentAnalysisCrew:
             max_iter=3
         )
     
-             def create_financial_analyst_agent(self) -> Agent:
+                  def create_financial_analyst_agent(self) -> Agent:
          """Create financial analysis agent"""
          return Agent(
              role="Senior Financial Analyst",
@@ -352,27 +350,28 @@ class InvestmentAnalysisCrew:
              investment banks. You specialize in financial statement analysis, valuation, 
              and identifying investment opportunities and risks. You excel at extracting 
              and analyzing financial metrics from earnings transcripts.""",
-             tools=[self.tools['search'], self.tools['financial_metrics']],
+             tools=[self.tools['financial_metrics']],
              verbose=True,
              llm=self.llm,
              allow_delegation=False,
              max_iter=3
          )
     
-    def create_investment_advisor_agent(self) -> Agent:
-        """Create investment recommendation agent"""
-        return Agent(
-            role="Senior Investment Advisor",
-            goal="Synthesize analysis and provide clear, actionable investment recommendations",
-            backstory="""You are a seasoned investment professional with a proven track 
-            record of successful stock picks and portfolio management for institutional 
-            and high-net-worth clients. You excel at synthesizing complex analysis into 
-            clear, actionable investment advice.""",
-            verbose=True,
-            llm=self.llm,
-            allow_delegation=False,
-            max_iter=3
-        )
+         def create_investment_advisor_agent(self) -> Agent:
+         """Create investment recommendation agent"""
+         return Agent(
+             role="Senior Investment Advisor",
+             goal="Synthesize analysis and provide clear, actionable investment recommendations",
+             backstory="""You are a seasoned investment professional with a proven track 
+             record of successful stock picks and portfolio management for institutional 
+             and high-net-worth clients. You excel at synthesizing complex analysis into 
+             clear, actionable investment advice.""",
+             tools=[],
+             verbose=True,
+             llm=self.llm,
+             allow_delegation=False,
+             max_iter=3
+         )
     
     def analyze_single_company(self, company_name: str, quick_mode: bool = False) -> Dict[str, Any]:
         """Analyze a single company"""

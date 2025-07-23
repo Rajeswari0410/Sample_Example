@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 try:
     from crewai import Agent, Task, Crew, Process
     from crewai_tools import BaseTool
-    from langchain_community.tools import DuckDuckGoSearchRun
     from langchain_community.llms import Ollama
     from langchain_openai import ChatOpenAI
     from pydantic import BaseModel, Field
@@ -239,7 +238,6 @@ class InvestmentAnalysisCrew:
         tools = {
             'read_md': ReadMarkdownFileTool(),
             'sentiment': EnhancedSentimentTool(),
-            'search': DuckDuckGoSearchRun(),
             'financial_metrics': FinancialMetricsExtractorTool()
         }
         return tools
@@ -268,7 +266,7 @@ class InvestmentAnalysisCrew:
             investment banks. You specialize in financial statement analysis, valuation, 
             and identifying investment opportunities and risks. You excel at extracting 
             and analyzing financial metrics from earnings transcripts.""",
-            tools=[self.tools['search'], self.tools['financial_metrics']],
+            tools=[self.tools['financial_metrics']],
             verbose=True,
             llm=self.llm,
             allow_delegation=False,
@@ -283,7 +281,7 @@ class InvestmentAnalysisCrew:
             backstory="""You are a former risk manager at a major financial institution 
             with expertise in credit risk, market risk, operational risk, and ESG factors. 
             You have a keen eye for identifying potential red flags and risk mitigation strategies.""",
-            tools=[self.tools['search']],
+            tools=[],
             verbose=True,
             llm=self.llm,
             allow_delegation=False,
@@ -299,6 +297,7 @@ class InvestmentAnalysisCrew:
             record of successful stock picks and portfolio management for institutional 
             and high-net-worth clients. You excel at synthesizing complex analysis into 
             clear, actionable investment advice.""",
+            tools=[],
             verbose=True,
             llm=self.llm,
             allow_delegation=False,
