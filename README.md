@@ -12,7 +12,7 @@ A comprehensive AI-powered investment analysis system that analyzes company earn
 
 - **Enhanced Analysis:**
   - Advanced sentiment analysis with financial context
-  - Alpha Vantage integration for real-time financial data
+  - Financial metrics extraction from transcript text
   - Comprehensive error handling and logging
   - Structured markdown reports for each company
 
@@ -51,7 +51,6 @@ A comprehensive AI-powered investment analysis system that analyzes company earn
    ```python
    import os
    os.environ['OPENAI_API_KEY'] = 'your-openai-api-key'
-   os.environ['ALPHA_VANTAGE_API_KEY'] = 'your-alpha-vantage-key'
    ```
 
 4. **Run the main analysis script:**
@@ -80,10 +79,10 @@ Ensure your Google Drive has the following structure:
 - Provides better performance and reliability
 - Required for optimal results
 
-### Alpha Vantage API Key (Optional)
-- Get free key from: https://www.alphavantage.co/support/#api-key
-- Enables real-time financial data retrieval
-- Enhances financial analysis quality
+### Financial Data Extraction
+- The system now extracts financial metrics directly from transcript text
+- No external API required for basic financial data
+- Identifies revenue, EPS, growth rates, margins, and other key metrics from earnings calls
 
 ## 📊 Usage Examples
 

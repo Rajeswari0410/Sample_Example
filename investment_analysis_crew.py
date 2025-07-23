@@ -39,7 +39,6 @@ class InvestmentAnalysisConfig:
         self.output_dir = "analysis_outputs"
         self.use_openai = True  # Set to False to use Ollama
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
         
     def setup_llm(self):
         """Setup the language model"""
@@ -143,67 +142,89 @@ class EnhancedSentimentTool(BaseTool):
             logger.error(f"Error in sentiment analysis: {e}")
             return json.dumps({'error': str(e), 'sentiment_score': 0})
 
-class StockDataTool(BaseTool):
-    name: str = "get_stock_data"
-    description: str = "Get basic stock information and financial data"
+class FinancialMetricsExtractorTool(BaseTool):
+    name: str = "extract_financial_metrics"
+    description: str = "Extract and analyze financial metrics from transcript text"
     
-    def __init__(self, alpha_vantage_key: Optional[str] = None):
-        super().__init__()
-        self.alpha_vantage_key = alpha_vantage_key
-    
-    def _run(self, symbol: str) -> str:
-        """Get stock data using Alpha Vantage or fallback methods"""
+    def _run(self, text: str) -> str:
+        """Extract key financial metrics from transcript text"""
         try:
-            if self.alpha_vantage_key:
-                return self._get_alpha_vantage_data(symbol)
-            else:
-                return self._get_basic_stock_info(symbol)
-        except Exception as e:
-            logger.error(f"Error getting stock data for {symbol}: {e}")
-            return f"Error retrieving stock data for {symbol}: {str(e)}"
-    
-    def _get_alpha_vantage_data(self, symbol: str) -> str:
-        """Get data from Alpha Vantage API"""
-        try:
-            url = f"https://www.alphavantage.co/query"
-            params = {
-                'function': 'OVERVIEW',
-                'symbol': symbol,
-                'apikey': self.alpha_vantage_key
+            text_lower = text.lower()
+            
+            # Extract revenue information
+            revenue_patterns = [
+                r'revenue[:\s]+\$?([0-9,.]+)\s*(million|billion|k)',
+                r'sales[:\s]+\$?([0-9,.]+)\s*(million|billion|k)',
+                r'total revenue[:\s]+\$?([0-9,.]+)\s*(million|billion|k)'
+            ]
+            
+            # Extract EPS information
+            eps_patterns = [
+                r'earnings per share[:\s]+\$?([0-9,.]+)',
+                r'eps[:\s]+\$?([0-9,.]+)',
+                r'diluted eps[:\s]+\$?([0-9,.]+)'
+            ]
+            
+            # Extract growth information
+            growth_patterns = [
+                r'([0-9]+)%\s+(?:yoy|year.over.year|growth)',
+                r'(?:up|increase|growth)[:\s]+([0-9]+)%',
+                r'([0-9]+)%\s+(?:increase|growth|higher)'
+            ]
+            
+            # Extract guidance information
+            guidance_keywords = ['guidance', 'outlook', 'forecast', 'expect', 'anticipate']
+            guidance_mentions = sum(text_lower.count(word) for word in guidance_keywords)
+            
+            # Extract margin information
+            margin_patterns = [
+                r'margin[:\s]+([0-9,.]+)%',
+                r'operating margin[:\s]+([0-9,.]+)%',
+                r'gross margin[:\s]+([0-9,.]+)%'
+            ]
+            
+            # Find all matches
+            revenue_matches = []
+            for pattern in revenue_patterns:
+                revenue_matches.extend(re.findall(pattern, text, re.IGNORECASE))
+            
+            eps_matches = []
+            for pattern in eps_patterns:
+                eps_matches.extend(re.findall(pattern, text, re.IGNORECASE))
+            
+            growth_matches = []
+            for pattern in growth_patterns:
+                growth_matches.extend(re.findall(pattern, text, re.IGNORECASE))
+            
+            margin_matches = []
+            for pattern in margin_patterns:
+                margin_matches.extend(re.findall(pattern, text, re.IGNORECASE))
+            
+            # Extract key business metrics
+            capex_mentions = len(re.findall(r'capex|capital expenditure', text_lower))
+            dividend_mentions = len(re.findall(r'dividend|payout', text_lower))
+            acquisition_mentions = len(re.findall(r'acquisition|merger|acquire', text_lower))
+            
+            # Compile results
+            metrics = {
+                'revenue_mentions': len(revenue_matches),
+                'revenue_figures': revenue_matches[:3] if revenue_matches else [],
+                'eps_mentions': len(eps_matches),
+                'eps_figures': eps_matches[:3] if eps_matches else [],
+                'growth_percentages': growth_matches[:5] if growth_matches else [],
+                'margin_figures': margin_matches[:3] if margin_matches else [],
+                'guidance_mentions': guidance_mentions,
+                'capex_mentions': capex_mentions,
+                'dividend_mentions': dividend_mentions,
+                'acquisition_mentions': acquisition_mentions,
+                'key_metrics_found': len(revenue_matches) + len(eps_matches) + len(growth_matches)
             }
             
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            if 'Error Message' in data:
-                return f"Error: {data['Error Message']}"
-            
-            # Extract key financial metrics
-            key_metrics = {
-                'Symbol': data.get('Symbol', 'N/A'),
-                'Name': data.get('Name', 'N/A'),
-                'Sector': data.get('Sector', 'N/A'),
-                'Market Cap': data.get('MarketCapitalization', 'N/A'),
-                'P/E Ratio': data.get('PERatio', 'N/A'),
-                'Dividend Yield': data.get('DividendYield', 'N/A'),
-                'EPS': data.get('EPS', 'N/A'),
-                'Revenue TTM': data.get('RevenueTTM', 'N/A'),
-                'Profit Margin': data.get('ProfitMargin', 'N/A')
-            }
-            
-            return json.dumps(key_metrics, indent=2)
+            return json.dumps(metrics, indent=2)
             
         except Exception as e:
-            return f"Error with Alpha Vantage API: {str(e)}"
-    
-    def _get_basic_stock_info(self, symbol: str) -> str:
-        """Fallback method for basic stock information"""
-        return json.dumps({
-            'symbol': symbol,
-            'note': 'Limited data available without API key',
-            'recommendation': 'Set ALPHA_VANTAGE_API_KEY for detailed financial data'
-        }, indent=2)
+            logger.error(f"Error extracting financial metrics: {e}")
+            return json.dumps({'error': str(e), 'metrics_found': 0})
 
 class InvestmentAnalysisCrew:
     """Main class for running investment analysis using CrewAI"""
@@ -219,7 +240,7 @@ class InvestmentAnalysisCrew:
             'read_md': ReadMarkdownFileTool(),
             'sentiment': EnhancedSentimentTool(),
             'search': DuckDuckGoSearchRun(),
-            'stock_data': StockDataTool(self.config.alpha_vantage_key)
+            'financial_metrics': FinancialMetricsExtractorTool()
         }
         return tools
     
@@ -245,8 +266,9 @@ class InvestmentAnalysisCrew:
             goal="Analyze financial health, performance metrics, and market position",
             backstory="""You are a seasoned financial analyst with 15+ years at top-tier 
             investment banks. You specialize in financial statement analysis, valuation, 
-            and identifying investment opportunities and risks.""",
-            tools=[self.tools['search'], self.tools['stock_data']],
+            and identifying investment opportunities and risks. You excel at extracting 
+            and analyzing financial metrics from earnings transcripts.""",
+            tools=[self.tools['search'], self.tools['financial_metrics']],
             verbose=True,
             llm=self.llm,
             allow_delegation=False,
@@ -316,25 +338,29 @@ class InvestmentAnalysisCrew:
         # Task 2: Financial Analysis
         financial_task = Task(
             description=f"""Conduct a comprehensive financial analysis of {company_name} based on the 
-            transcript analysis and available financial data.
+            transcript analysis. Use the financial metrics extraction tool to identify and analyze 
+            specific financial data mentioned in the transcript.
             
             Focus on:
-            1. Revenue trends and growth drivers
-            2. Profitability and margin analysis
-            3. Cash flow and capital allocation
-            4. Key financial ratios and metrics
-            5. Competitive positioning
-            6. Valuation considerations
+            1. Extract specific revenue figures, EPS, and growth percentages from the transcript
+            2. Analyze revenue trends and growth drivers mentioned
+            3. Evaluate profitability metrics and margin analysis
+            4. Assess guidance and forward-looking statements
+            5. Identify key business metrics like capex, dividends, acquisitions
+            6. Compare current performance to historical trends mentioned
+            7. Evaluate competitive positioning based on transcript insights
             
-            Use available tools to gather additional financial data and market information.""",
+            Use the financial metrics extraction tool to systematically extract numerical data 
+            from the transcript content.""",
             agent=self.create_financial_analyst_agent(),
             expected_output="""A comprehensive financial analysis report including:
-            - Revenue and profitability trends
-            - Key financial metrics and ratios
-            - Capital allocation strategy
-            - Competitive position assessment
-            - Valuation analysis
-            - Growth prospects evaluation""",
+            - Extracted financial metrics (revenue, EPS, growth rates, margins)
+            - Revenue and profitability trend analysis
+            - Key financial highlights from the transcript
+            - Business performance assessment
+            - Growth prospects and guidance analysis
+            - Capital allocation and strategic initiatives
+            - Financial health summary with specific data points""",
             context=[transcript_task],
             output_file=os.path.join(company_path, "financial_analysis.md")
         )

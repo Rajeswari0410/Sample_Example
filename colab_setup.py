@@ -95,18 +95,8 @@ def setup_api_keys():
     else:
         print("⚠️ No OpenAI key provided. Will attempt to use Ollama (may require setup)")
     
-    # Alpha Vantage API Key (optional, for financial data)
-    print("\nFor enhanced financial data, provide an Alpha Vantage API key:")
-    print("(Get free key at: https://www.alphavantage.co/support/#api-key)")
-    alpha_key = getpass("Enter Alpha Vantage API Key (or press Enter to skip): ")
-    if alpha_key.strip():
-        os.environ['ALPHA_VANTAGE_API_KEY'] = alpha_key.strip()
-        print("✅ Alpha Vantage API key set")
-    else:
-        print("⚠️ No Alpha Vantage key provided. Will use basic financial data")
-    
     print("\n🚀 Configuration complete!")
-    return bool(openai_key.strip()), bool(alpha_key.strip())
+    return bool(openai_key.strip())
 
 # ============================================================================
 # STEP 4: LOAD INVESTMENT ANALYSIS SYSTEM
@@ -142,14 +132,13 @@ except ImportError as e:
     logger.error(f"Missing required packages: {e}")
     raise
 
-class InvestmentAnalysisConfig:
-    """Configuration class for the investment analysis system"""
-    
-    def __init__(self):
-        self.base_path = "/content/drive/MyDrive/Earnings2Insights/ECTsum"
-        self.use_openai = bool(os.getenv('OPENAI_API_KEY'))
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
+ class InvestmentAnalysisConfig:
+     """Configuration class for the investment analysis system"""
+     
+     def __init__(self):
+         self.base_path = "/content/drive/MyDrive/Earnings2Insights/ECTsum"
+         self.use_openai = bool(os.getenv('OPENAI_API_KEY'))
+         self.openai_api_key = os.getenv('OPENAI_API_KEY')
         
     def setup_llm(self):
         """Setup the language model"""
@@ -192,51 +181,135 @@ class ReadMarkdownFileTool(BaseTool):
             logger.error(f"Error reading file {file_path}: {e}")
             return f"Error reading file: {str(e)}"
 
-class EnhancedSentimentTool(BaseTool):
-    name: str = "analyze_sentiment"
-    description: str = "Analyze sentiment and extract key financial indicators from text"
-    
-    def _run(self, text: str) -> str:
-        """Enhanced sentiment analysis with financial context"""
-        try:
-            positive_words = [
-                'growth', 'profit', 'increase', 'strong', 'success', 'revenue',
-                'expansion', 'bullish', 'outperform', 'beat', 'exceed', 'positive',
-                'improvement', 'momentum', 'opportunity', 'optimistic'
-            ]
-            
-            negative_words = [
-                'loss', 'decline', 'risk', 'weak', 'challenge', 'decrease',
-                'bearish', 'underperform', 'miss', 'concern', 'negative',
-                'uncertainty', 'volatility', 'pressure', 'headwind'
-            ]
-            
-            text_lower = text.lower()
-            positive_count = sum(text_lower.count(word) for word in positive_words)
-            negative_count = sum(text_lower.count(word) for word in negative_words)
-            
-            revenue_mentions = len(re.findall(r'revenue|sales|income', text_lower))
-            profit_mentions = len(re.findall(r'profit|earnings|ebitda', text_lower))
-            growth_mentions = len(re.findall(r'growth|expand|increase', text_lower))
-            
-            total_words = max(1, positive_count + negative_count)
-            sentiment_score = (positive_count - negative_count) / total_words
-            
-            analysis = {
-                'sentiment_score': round(sentiment_score, 3),
-                'positive_indicators': positive_count,
-                'negative_indicators': negative_count,
-                'revenue_mentions': revenue_mentions,
-                'profit_mentions': profit_mentions,
-                'growth_mentions': growth_mentions,
-                'overall_tone': 'positive' if sentiment_score > 0.1 else 'negative' if sentiment_score < -0.1 else 'neutral'
-            }
-            
-            return json.dumps(analysis, indent=2)
-            
-        except Exception as e:
-            logger.error(f"Error in sentiment analysis: {e}")
-            return json.dumps({'error': str(e), 'sentiment_score': 0})
+ class EnhancedSentimentTool(BaseTool):
+     name: str = "analyze_sentiment"
+     description: str = "Analyze sentiment and extract key financial indicators from text"
+     
+     def _run(self, text: str) -> str:
+         """Enhanced sentiment analysis with financial context"""
+         try:
+             positive_words = [
+                 'growth', 'profit', 'increase', 'strong', 'success', 'revenue',
+                 'expansion', 'bullish', 'outperform', 'beat', 'exceed', 'positive',
+                 'improvement', 'momentum', 'opportunity', 'optimistic'
+             ]
+             
+             negative_words = [
+                 'loss', 'decline', 'risk', 'weak', 'challenge', 'decrease',
+                 'bearish', 'underperform', 'miss', 'concern', 'negative',
+                 'uncertainty', 'volatility', 'pressure', 'headwind'
+             ]
+             
+             text_lower = text.lower()
+             positive_count = sum(text_lower.count(word) for word in positive_words)
+             negative_count = sum(text_lower.count(word) for word in negative_words)
+             
+             revenue_mentions = len(re.findall(r'revenue|sales|income', text_lower))
+             profit_mentions = len(re.findall(r'profit|earnings|ebitda', text_lower))
+             growth_mentions = len(re.findall(r'growth|expand|increase', text_lower))
+             
+             total_words = max(1, positive_count + negative_count)
+             sentiment_score = (positive_count - negative_count) / total_words
+             
+             analysis = {
+                 'sentiment_score': round(sentiment_score, 3),
+                 'positive_indicators': positive_count,
+                 'negative_indicators': negative_count,
+                 'revenue_mentions': revenue_mentions,
+                 'profit_mentions': profit_mentions,
+                 'growth_mentions': growth_mentions,
+                 'overall_tone': 'positive' if sentiment_score > 0.1 else 'negative' if sentiment_score < -0.1 else 'neutral'
+             }
+             
+             return json.dumps(analysis, indent=2)
+             
+         except Exception as e:
+             logger.error(f"Error in sentiment analysis: {e}")
+             return json.dumps({'error': str(e), 'sentiment_score': 0})
+
+ class FinancialMetricsExtractorTool(BaseTool):
+     name: str = "extract_financial_metrics"
+     description: str = "Extract and analyze financial metrics from transcript text"
+     
+     def _run(self, text: str) -> str:
+         """Extract key financial metrics from transcript text"""
+         try:
+             text_lower = text.lower()
+             
+             # Extract revenue information
+             revenue_patterns = [
+                 r'revenue[:\s]+\\$?([0-9,.]+)\\s*(million|billion|k)',
+                 r'sales[:\s]+\\$?([0-9,.]+)\\s*(million|billion|k)',
+                 r'total revenue[:\s]+\\$?([0-9,.]+)\\s*(million|billion|k)'
+             ]
+             
+             # Extract EPS information
+             eps_patterns = [
+                 r'earnings per share[:\s]+\\$?([0-9,.]+)',
+                 r'eps[:\s]+\\$?([0-9,.]+)',
+                 r'diluted eps[:\s]+\\$?([0-9,.]+)'
+             ]
+             
+             # Extract growth information
+             growth_patterns = [
+                 r'([0-9]+)%\\s+(?:yoy|year.over.year|growth)',
+                 r'(?:up|increase|growth)[:\\s]+([0-9]+)%',
+                 r'([0-9]+)%\\s+(?:increase|growth|higher)'
+             ]
+             
+             # Extract guidance information
+             guidance_keywords = ['guidance', 'outlook', 'forecast', 'expect', 'anticipate']
+             guidance_mentions = sum(text_lower.count(word) for word in guidance_keywords)
+             
+             # Extract margin information
+             margin_patterns = [
+                 r'margin[:\\s]+([0-9,.]+)%',
+                 r'operating margin[:\\s]+([0-9,.]+)%',
+                 r'gross margin[:\\s]+([0-9,.]+)%'
+             ]
+             
+             # Find all matches
+             revenue_matches = []
+             for pattern in revenue_patterns:
+                 revenue_matches.extend(re.findall(pattern, text, re.IGNORECASE))
+             
+             eps_matches = []
+             for pattern in eps_patterns:
+                 eps_matches.extend(re.findall(pattern, text, re.IGNORECASE))
+             
+             growth_matches = []
+             for pattern in growth_patterns:
+                 growth_matches.extend(re.findall(pattern, text, re.IGNORECASE))
+             
+             margin_matches = []
+             for pattern in margin_patterns:
+                 margin_matches.extend(re.findall(pattern, text, re.IGNORECASE))
+             
+             # Extract key business metrics
+             capex_mentions = len(re.findall(r'capex|capital expenditure', text_lower))
+             dividend_mentions = len(re.findall(r'dividend|payout', text_lower))
+             acquisition_mentions = len(re.findall(r'acquisition|merger|acquire', text_lower))
+             
+             # Compile results
+             metrics = {
+                 'revenue_mentions': len(revenue_matches),
+                 'revenue_figures': revenue_matches[:3] if revenue_matches else [],
+                 'eps_mentions': len(eps_matches),
+                 'eps_figures': eps_matches[:3] if eps_matches else [],
+                 'growth_percentages': growth_matches[:5] if growth_matches else [],
+                 'margin_figures': margin_matches[:3] if margin_matches else [],
+                 'guidance_mentions': guidance_mentions,
+                 'capex_mentions': capex_mentions,
+                 'dividend_mentions': dividend_mentions,
+                 'acquisition_mentions': acquisition_mentions,
+                 'key_metrics_found': len(revenue_matches) + len(eps_matches) + len(growth_matches)
+             }
+             
+             return json.dumps(metrics, indent=2)
+             
+         except Exception as e:
+             logger.error(f"Error extracting financial metrics: {e}")
+             return json.dumps({'error': str(e), 'metrics_found': 0})
 
 class InvestmentAnalysisCrew:
     """Main class for running investment analysis using CrewAI"""
@@ -246,13 +319,14 @@ class InvestmentAnalysisCrew:
         self.llm = config.setup_llm()
         self.tools = self._setup_tools()
         
-    def _setup_tools(self):
-        """Setup all tools for the crew"""
-        return {
-            'read_md': ReadMarkdownFileTool(),
-            'sentiment': EnhancedSentimentTool(),
-            'search': DuckDuckGoSearchRun()
-        }
+         def _setup_tools(self):
+         """Setup all tools for the crew"""
+         return {
+             'read_md': ReadMarkdownFileTool(),
+             'sentiment': EnhancedSentimentTool(),
+             'search': DuckDuckGoSearchRun(),
+             'financial_metrics': FinancialMetricsExtractorTool()
+         }
     
     def create_transcript_analyzer_agent(self) -> Agent:
         """Create transcript analysis agent"""
@@ -269,20 +343,21 @@ class InvestmentAnalysisCrew:
             max_iter=3
         )
     
-    def create_financial_analyst_agent(self) -> Agent:
-        """Create financial analysis agent"""
-        return Agent(
-            role="Senior Financial Analyst",
-            goal="Analyze financial health, performance metrics, and market position",
-            backstory="""You are a seasoned financial analyst with 15+ years at top-tier 
-            investment banks. You specialize in financial statement analysis, valuation, 
-            and identifying investment opportunities and risks.""",
-            tools=[self.tools['search']],
-            verbose=True,
-            llm=self.llm,
-            allow_delegation=False,
-            max_iter=3
-        )
+             def create_financial_analyst_agent(self) -> Agent:
+         """Create financial analysis agent"""
+         return Agent(
+             role="Senior Financial Analyst",
+             goal="Analyze financial health, performance metrics, and market position",
+             backstory="""You are a seasoned financial analyst with 15+ years at top-tier 
+             investment banks. You specialize in financial statement analysis, valuation, 
+             and identifying investment opportunities and risks. You excel at extracting 
+             and analyzing financial metrics from earnings transcripts.""",
+             tools=[self.tools['search'], self.tools['financial_metrics']],
+             verbose=True,
+             llm=self.llm,
+             allow_delegation=False,
+             max_iter=3
+         )
     
     def create_investment_advisor_agent(self) -> Agent:
         """Create investment recommendation agent"""
@@ -579,7 +654,7 @@ def main():
         return
     
     # Step 3: Setup API keys
-    has_openai, has_alpha = setup_api_keys()
+    has_openai = setup_api_keys()
     
     # Step 4: Load analysis system
     create_analysis_system()
